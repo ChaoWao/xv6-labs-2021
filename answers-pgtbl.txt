@@ -1,0 +1,10 @@
+1. Which other xv6 system call(s) could be made faster using this shared page? Explain how.
+    Not considered yet.
+
+2. Explain the output of vmprint in terms of Fig 3-4 from the text. What does page 0 contain? What is in page 2? When running in user mode, could the process read/write the memory mapped by page 1? What does the third to last page contain?
+   Page 0: text & data
+   Page 1: guard page, cannot be read/write by user mode instructions
+   Page 2: process stack
+   Last Page 0: trampoline
+   Last Page 1: trapframe
+   Last Page 2: shared page for usyscall
