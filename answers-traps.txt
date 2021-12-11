@@ -1,0 +1,20 @@
+1. Which registers contain arguments to functions? For example, which register holds 13 in main's call to printf?
+    Accroding to RISC-V calling convention, a0-a7 contain arguments to functions. In function printf, a0 holds a pointer to the formatted text, a1 holds the result of f(8) + 1, a2 holds 13.
+
+2. Where is the call to function f in the assembly code for main? Where is the call to g? (Hint: the compiler may inline functions.)
+    In line 46 of call.asm, function call to f and g is optimized to "li a1, 12".
+
+3. At what address is the function printf located?
+    Accroding to line 50 or 1097, printf is at 0x630.
+
+4. What value is in the register ra just after the jalr to printf in main?
+    It is the next pc of the calling function, which in this case, is 0x38, the address of the line 38 of call.asm, which is the instruction "li a0, 0".
+
+5. What is the output?
+    "HE110, World". "H". 57616(10) -> E110(16). " Wo". 72(16) -> 'r'(char), 6c(16) -> 'l'(char), 64(16) -> 'd'(char), 00(16) -> NULL(char). Togather is "HE110, World".
+
+6. If the RISC-V were instead big-endian what would you set i to in order to yield the same output? Would you need to change 57616 to a different value?
+    Set i to 0x726c6400 in big-endian. Don't need to change 57616.
+
+7. In the following code (printf("x=%d y=%d", 3);), what is going to be printed after 'y='? (note: the answer is not a specific value.) Why does this happen?
+    The value in a2 is going to be printed. Because the formatted text in a0 needs two arguments. It assumes they are in a1 and a2. So no matter a2 is, it will be printed to be y.
