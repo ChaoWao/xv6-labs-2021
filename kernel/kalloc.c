@@ -14,6 +14,11 @@ void freerange(void *pa_start, void *pa_end);
 extern char end[]; // first address after kernel.
                    // defined by kernel.ld.
 
+// page reference count, index is physical address >> 12
+// page lower than end is never used
+#define MAXPAGE (PHYSTOP >> 12)
+int page_reference[MAXPAGE];
+
 struct run {
   struct run *next;
 };
@@ -48,6 +53,13 @@ kfree(void *pa)
 {
   struct run *r;
 
+  // physical page is not freed before the last PTE reference to it goes away
+  if (page_reference[(uint64)pa >> 12] >= 1)
+    page_reference[(uint64)pa >> 12] -= 1;
+  if (page_reference[(uint64)pa >> 12] != 0) {
+    return;
+  }
+
   if(((uint64)pa % PGSIZE) != 0 || (char*)pa < end || (uint64)pa >= PHYSTOP)
     panic("kfree");
 
@@ -76,7 +88,9 @@ kalloc(void)
     kmem.freelist = r->next;
   release(&kmem.lock);
 
-  if(r)
+  if(r) {
+    page_reference[(uint64)r >> 12] = 1;
     memset((char*)r, 5, PGSIZE); // fill with junk
+  }
   return (void*)r;
 }
