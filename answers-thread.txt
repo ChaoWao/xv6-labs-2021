@@ -1,0 +1,11 @@
+1. Why are there missing keys with 2 threads, but not with 1 thread?
+    With 1 thread, the put and insert are always interleaved.
+    No changes to hash table happen at the same time.
+    But with 2 threads, there will be race to access the hash table,
+    and this leads to the missing keys.
+
+2. Identify a sequence of events with 2 threads that can lead to a key being missing.
+    Suppose thread No. 1 is running the insert and so does thread No. 2.
+    They shall both insert a entry. But because they enter the insert function with the same hash table,
+    they could only insert one key at most, which causes a key being missing.
+
