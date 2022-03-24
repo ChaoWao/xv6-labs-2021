@@ -84,11 +84,8 @@ kalloc(void)
     kmem[me].freelist = r->next;
   release(&kmem[me].lock);
 
-  if(r)
-    memset((char*)r, 5, PGSIZE); // fill with junk
-  else {
+  if (!r) {
     // try to steal from other cpu's freelist
-    // may lead to dead lock, so be careful
     
     // since null is not included
     struct run * stolen = r;
@@ -119,8 +116,10 @@ kalloc(void)
       r = kmem[me].freelist;
       kmem[me].freelist = r->next;
       release(&kmem[me].lock);
-      memset((char*)r, 5, PGSIZE); // fill with junk
     }
   }
+
+  if(r)
+    memset((char*)r, 5, PGSIZE); // fill with junk
   return (void*)r;
 }
