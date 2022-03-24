@@ -21,12 +21,12 @@ struct run {
 struct {
   struct spinlock lock;
   struct run *freelist;
-} kmem;
+} kmem[NCPU];
 
 void
 kinit()
 {
-  initlock(&kmem.lock, "kmem");
+  initlock(&kmem[0].lock, "kmem");
   freerange(end, (void*)PHYSTOP);
 }
 
@@ -56,10 +56,13 @@ kfree(void *pa)
 
   r = (struct run*)pa;
 
-  acquire(&kmem.lock);
-  r->next = kmem.freelist;
-  kmem.freelist = r;
-  release(&kmem.lock);
+  push_off();
+  int n = cpuid();
+  pop_off();
+  acquire(&kmem[n].lock);
+  r->next = kmem[n].freelist;
+  kmem[n].freelist = r;
+  release(&kmem[n].lock);
 }
 
 // Allocate one 4096-byte page of physical memory.
@@ -70,13 +73,53 @@ kalloc(void)
 {
   struct run *r;
 
-  acquire(&kmem.lock);
-  r = kmem.freelist;
+  push_off();
+  int me = cpuid();
+  pop_off();
+
+  acquire(&kmem[me].lock);
+  r = kmem[me].freelist;
   if(r)
-    kmem.freelist = r->next;
-  release(&kmem.lock);
+    kmem[me].freelist = r->next;
+  release(&kmem[me].lock);
 
   if(r)
     memset((char*)r, 5, PGSIZE); // fill with junk
+  else {
+    // try to steal from other cpu's freelist
+    // may lead to dead lock, so be careful
+    
+    // since null is not included
+    struct run * stolen = r;
+
+    for (int i = 0; i < NCPU; i++) {
+      if (i != me) {
+        acquire(&kmem[i].lock);
+        if (kmem[i].freelist) {
+          // steal half, to do so, use quick-slow pointers
+          struct run * quick = kmem[i].freelist;
+          struct run * slow = kmem[i].freelist;
+          while (quick->next && quick->next->next) {
+            quick = quick->next->next;
+            slow = slow->next;
+          }
+          stolen = slow->next;
+          slow->next = r;
+        }
+        release(&kmem[i].lock);
+        if (stolen)
+          break;
+      }
+    }
+
+    if (stolen) {
+      acquire(&kmem[me].lock);
+      kmem[me].freelist = stolen;
+      r = kmem[me].freelist;
+      kmem[me].freelist = r->next;
+      release(&kmem[me].lock);
+      memset((char*)r, 5, PGSIZE); // fill with junk
+    }
+  }
   return (void*)r;
 }
